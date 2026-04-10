@@ -8,7 +8,7 @@ public class Dropper : MonoBehaviour
     private GameSetting game;
     public GameObject currentPrefabs;
 
-    private void PrepareCurrentAnimal()
+    private void PrepareCurrentPrefabs()
     {
         if (currentPrefabs == null)
         {
@@ -30,16 +30,16 @@ public class Dropper : MonoBehaviour
 
     void Start()
     {
-        game = GameObject.Find("GameSetting").GetComponent<GameSetting>();
+        game = GameObject.Find("GameController").GetComponent<GameSetting>();
 
-        currentPrefabs = game.InstantiateAnimal((Vector2)this.transform.position, 0);
+        currentPrefabs = game.InstantiatePrefabs((Vector2)this.transform.position, 0);
         if (currentPrefabs == null)
         {
             Debug.LogError("currentPrefabs is null in Start()");
         }
         else
         {
-            PrepareCurrentAnimal();
+            PrepareCurrentPrefabs();
         }
     }
 
@@ -55,23 +55,23 @@ public class Dropper : MonoBehaviour
 
     private void CreatePrefabs()
     {
-        int randomAnimal = Random.Range(0, 5);
+        int randomPrefabs = Random.Range(0, 5);
 
-        currentPrefabs = game.InstantiateAnimal((Vector2)this.transform.position, randomAnimal);
+        currentPrefabs = game.InstantiatePrefabs((Vector2)this.transform.position, randomPrefabs);
         if (currentPrefabs == null)
         {
             Debug.LogError("currentPrefabs is null in CreatePrefabs()");
         }
         else
         {
-            PrepareCurrentAnimal();
+            PrepareCurrentPrefabs();
         }
     }
 
     void Update()
     {
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        if (!game.gameOver && mousePos.x < 2.2f && mousePos.x > -2.2f)
+        if (!game.gameOver && mousePos.x < 2.58f && mousePos.x > -2.58f)
         {
             mousePos.y = 3f;
             transform.position = mousePos;

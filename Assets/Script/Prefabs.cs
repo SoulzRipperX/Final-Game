@@ -11,15 +11,15 @@ public class Prefabs : MonoBehaviour
     private GameSetting game;
     private bool hasCollided = false;
     private bool hasBeenReleased = false;
-    private bool hasSpawnedNextAnimal = false;
-    private Coroutine endGameCoroutine;
+    private bool hasSpawnedNextPrefabs = false;
+    private int topBarOverlapCount = 0;
     public Dropper dropper;
     public bool isTouchingTopBar = false;
 
 
     void Start()
     {
-        game = GameObject.Find("GameSetting").GetComponent<GameSetting>();
+        game = GameObject.Find("GameController").GetComponent<GameSetting>();
         if (dropper == null)
         {
             dropper = GameObject.Find("Dropper").GetComponent<Dropper>();
@@ -31,47 +31,29 @@ public class Prefabs : MonoBehaviour
         dropper = owningDropper;
         hasCollided = false;
         hasBeenReleased = false;
-        hasSpawnedNextAnimal = false;
+        hasSpawnedNextPrefabs = false;
+        topBarOverlapCount = 0;
         isTouchingTopBar = false;
-
-        if (endGameCoroutine != null)
-        {
-            StopCoroutine(endGameCoroutine);
-            endGameCoroutine = null;
-        }
     }
 
     public void Release()
     {
         hasBeenReleased = true;
-    }
 
-    IEnumerator DestroyAnimals(GameObject Animal1, GameObject Animal2)
-    {
-        yield return new WaitForSeconds(0.1f);
-        Destroy(Animal1);
-        Destroy(Animal2);
-    }
-
-    IEnumerator WaitForEndGame()
-    {
-        yield return new WaitForSeconds(5f);
-        endGameCoroutine = null;
-
-        if (isTouchingTopBar == true)
+        if (isTouchingTopBar)
         {
-            game.endGame();
+            game.SetTopBarContact(this, true);
         }
     }
 
-    private void SpawnNextAnimalIfNeeded()
+    private void SpawnNextPrefabsIfNeeded()
     {
-        if (!hasBeenReleased || hasSpawnedNextAnimal || dropper == null || game.gameOver)
+        if (!hasBeenReleased || hasSpawnedNextPrefabs || dropper == null || game.gameOver)
         {
             return;
         }
 
-        hasSpawnedNextAnimal = true;
+        hasSpawnedNextPrefabs = true;
 
         if (dropper.currentPrefabs == this.gameObject)
         {
@@ -87,12 +69,23 @@ public class Prefabs : MonoBehaviour
             return;
         }
 
-        isTouchingTopBar = true;
+        topBarOverlapCount++;
+        RefreshTopBarState();
+    }
 
-        if (endGameCoroutine == null)
+    void OnTriggerStay2D(Collider2D collision)
+    {
+        if (!collision.CompareTag(TopBarTag))
         {
-            endGameCoroutine = StartCoroutine(WaitForEndGame());
+            return;
         }
+
+        if (topBarOverlapCount == 0)
+        {
+            topBarOverlapCount = 1;
+        }
+
+        RefreshTopBarState();
     }
 
     void OnTriggerExit2D(Collider2D collision)
@@ -102,33 +95,66 @@ public class Prefabs : MonoBehaviour
             return;
         }
 
-        isTouchingTopBar = false;
-
-        if (endGameCoroutine != null)
-        {
-            StopCoroutine(endGameCoroutine);
-            endGameCoroutine = null;
-        }
+        topBarOverlapCount = Mathf.Max(0, topBarOverlapCount - 1);
+        RefreshTopBarState();
     }
 
     void OnCollisionEnter2D(Collision2D collision)
     {
-        SpawnNextAnimalIfNeeded();
+        SpawnNextPrefabsIfNeeded();
 
-        Prefabs otherAnimal = collision.gameObject.GetComponent<Prefabs>();
+        Prefabs otherPrefabs = collision.gameObject.GetComponent<Prefabs>();
 
-        if (!hasCollided && otherAnimal != null && !otherAnimal.hasCollided && otherAnimal.id == this.id && this.gameObject.GetInstanceID() < collision.gameObject.GetInstanceID())
+        if (!hasCollided && otherPrefabs != null && !otherPrefabs.hasCollided && otherPrefabs.id == this.id && this.gameObject.GetInstanceID() < collision.gameObject.GetInstanceID())
         {
             hasCollided = true;
-            otherAnimal.hasCollided = true;
+            otherPrefabs.hasCollided = true;
 
-            if (game.CanInstantiateAnimal(this.id + 1))
+            if (game.CanInstantiatePrefabs(this.id + 1))
             {
-                game.InstantiateAnimal((Vector2)this.transform.position, this.id + 1);
+                game.InstantiatePrefabs((Vector2)this.transform.position, this.id + 1);
             }
 
             game.addScore(this.id);
-            StartCoroutine(DestroyAnimals(this.gameObject, collision.gameObject));
+            game.PlayMergeSfx();
+            StartCoroutine(DestroyPrefabs(this.gameObject, collision.gameObject));
+        }
+    }
+
+    private void OnDisable()
+    {
+        topBarOverlapCount = 0;
+        isTouchingTopBar = false;
+
+        if (game != null)
+        {
+            game.SetTopBarContact(this, false);
+        }
+    }
+
+    private IEnumerator DestroyPrefabs(GameObject prefabs1, GameObject prefabs2)
+    {
+        yield return new WaitForSeconds(0.1f);
+        Destroy(prefabs1);
+        Destroy(prefabs2);
+    }
+
+    private void RefreshTopBarState()
+    {
+        isTouchingTopBar = topBarOverlapCount > 0;
+
+        if (game == null)
+        {
+            return;
+        }
+
+        if (hasBeenReleased && isTouchingTopBar)
+        {
+            game.SetTopBarContact(this, true);
+        }
+        else
+        {
+            game.SetTopBarContact(this, false);
         }
     }
 }

@@ -1240,7 +1240,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Eggs Bomb
+  m_text: MOOD BOMBE
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: fef3dbdb1bacde643bd7713667b184e1, type: 2}
   m_sharedMaterial: {fileID: -5905147539959580683, guid: fef3dbdb1bacde643bd7713667b184e1, type: 2}

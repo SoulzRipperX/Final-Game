@@ -3,31 +3,70 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 
 public class GameSetting : MonoBehaviour
 {
+    private const string SfxVolumeKey = "SFX_VOLUME";
+
+    [Header("Gameplay")]
     public GameObject[] Prefabs;
     public int score = 0;
-    public TMP_Text scoreText;
-    public GameObject playAgainButton;
     public bool gameOver = false;
 
-    public bool CanInstantiateAnimal(int id)
+    [Header("UI")]
+    public TMP_Text scoreText;
+    [SerializeField] private TMP_Text timeText;
+    [SerializeField] private TMP_Text resultText;
+    [FormerlySerializedAs("playAgainButton")]
+    [SerializeField] private GameObject overCanvas;
+
+    [Header("Audio")]
+    [SerializeField] private AudioClip mergeSfx;
+
+    [Header("Game Over")]
+    [SerializeField] private float topBarLoseDelay = 5f;
+
+    private float elapsedTime = 0f;
+    private float topBarTouchTimer = 0f;
+    private AudioSource mergeAudioSource;
+    private readonly HashSet<Prefabs> prefabsTouchingTopBar = new HashSet<Prefabs>();
+
+    private void Start()
+    {
+        UpdateHud();
+        SetOverCanvasVisibility(false);
+        SetResultVisibility(false);
+    }
+
+    private void Update()
+    {
+        if (gameOver)
+        {
+            return;
+        }
+
+        elapsedTime += Time.deltaTime;
+        UpdateTimeText();
+        UpdateTopBarLoseState();
+    }
+
+    public bool CanInstantiatePrefabs(int id)
     {
         return id >= 0 && id < Prefabs.Length;
     }
 
-    public GameObject InstantiateAnimal(Vector2 position, int id)
+    public GameObject InstantiatePrefabs(Vector2 position, int id)
     {
-        if (!CanInstantiateAnimal(id))
+        if (!CanInstantiatePrefabs(id))
         {
             return null;
         }
 
         Vector3 spawnPosition = new Vector3(position.x, position.y, Prefabs[id].transform.position.z);
-        GameObject combinedAnimal = Instantiate(Prefabs[id], spawnPosition, Quaternion.identity);
-        combinedAnimal.GetComponent<Prefabs>().id = id;
-        return combinedAnimal;
+        GameObject combinedPrefabs = Instantiate(Prefabs[id], spawnPosition, Quaternion.identity);
+        combinedPrefabs.GetComponent<Prefabs>().id = id;
+        return combinedPrefabs;
 
     }
 
@@ -69,18 +108,146 @@ public class GameSetting : MonoBehaviour
                 score += 66;
                 break;
         }
-        scoreText.text = "Score: " + score.ToString();
+
+        UpdateScoreText();
     }
 
     public void endGame()
     {
+        if (gameOver)
+        {
+            return;
+        }
+
         gameOver = true;
-        playAgainButton.SetActive(true);
+        prefabsTouchingTopBar.Clear();
+        topBarTouchTimer = 0f;
+        UpdateResultText();
+        SetOverCanvasVisibility(true);
+        SetResultVisibility(true);
+    }
+
+    public void PlayMergeSfx()
+    {
+        if (mergeSfx == null)
+        {
+            return;
+        }
+
+        EnsureMergeAudioSource();
+        mergeAudioSource.volume = PlayerPrefs.GetFloat(SfxVolumeKey, 1f);
+        mergeAudioSource.PlayOneShot(mergeSfx);
     }
 
     public void playAgain()
     {
         Scene scene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(scene.name);
+    }
+
+    public void SetTopBarContact(Prefabs prefab, bool isTouching)
+    {
+        if (prefab == null)
+        {
+            return;
+        }
+
+        if (isTouching)
+        {
+            prefabsTouchingTopBar.Add(prefab);
+        }
+        else
+        {
+            prefabsTouchingTopBar.Remove(prefab);
+        }
+    }
+
+    private void UpdateHud()
+    {
+        UpdateScoreText();
+        UpdateTimeText();
+    }
+
+    private void UpdateScoreText()
+    {
+        if (scoreText != null)
+        {
+            scoreText.text = "SCORE: " + score;
+        }
+    }
+
+    private void UpdateTimeText()
+    {
+        if (timeText != null)
+        {
+            timeText.text = "TIME: " + FormatTime(elapsedTime);
+        }
+    }
+
+    private void UpdateResultText()
+    {
+        if (resultText != null)
+        {
+            resultText.text = "GAME OVER\nSCORE: " + score + "\nTIME: " + FormatTime(elapsedTime);
+        }
+    }
+
+    private void SetResultVisibility(bool isVisible)
+    {
+        if (resultText != null)
+        {
+            resultText.gameObject.SetActive(isVisible);
+        }
+    }
+
+    private void SetOverCanvasVisibility(bool isVisible)
+    {
+        if (overCanvas != null)
+        {
+            overCanvas.SetActive(isVisible);
+        }
+    }
+
+    private void UpdateTopBarLoseState()
+    {
+        if (prefabsTouchingTopBar.Count == 0)
+        {
+            topBarTouchTimer = 0f;
+            return;
+        }
+
+        topBarTouchTimer += Time.deltaTime;
+
+        if (topBarTouchTimer >= topBarLoseDelay)
+        {
+            endGame();
+        }
+    }
+
+    private void EnsureMergeAudioSource()
+    {
+        if (mergeAudioSource != null)
+        {
+            return;
+        }
+
+        mergeAudioSource = GetComponent<AudioSource>();
+
+        if (mergeAudioSource == null)
+        {
+            mergeAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        mergeAudioSource.playOnAwake = false;
+        mergeAudioSource.loop = false;
+        mergeAudioSource.spatialBlend = 0f;
+    }
+
+    private static string FormatTime(float timeInSeconds)
+    {
+        int totalSeconds = Mathf.FloorToInt(timeInSeconds);
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return minutes.ToString("00") + ":" + seconds.ToString("00");
     }
 }
