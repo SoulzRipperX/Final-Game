@@ -4,6 +4,7 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 public class GameSetting : MonoBehaviour
 {
@@ -20,6 +21,11 @@ public class GameSetting : MonoBehaviour
     [SerializeField] private TMP_Text resultText;
     [FormerlySerializedAs("playAgainButton")]
     [SerializeField] private GameObject overCanvas;
+
+    [Header("Next Preview")]
+    [SerializeField] private Image nextPrefabImage;
+    [SerializeField] private SpriteRenderer nextPrefabSpriteRenderer;
+    [SerializeField] private TMP_Text nextPrefabText;
 
     [Header("Audio")]
     [SerializeField] private AudioClip mergeSfx;
@@ -162,6 +168,30 @@ public class GameSetting : MonoBehaviour
         }
     }
 
+    public void UpdateNextPrefabPreview(int prefabId)
+    {
+        Sprite previewSprite = GetPrefabSprite(prefabId);
+        string previewName = GetPrefabDisplayName(prefabId);
+
+        if (nextPrefabImage != null)
+        {
+            nextPrefabImage.sprite = previewSprite;
+            nextPrefabImage.enabled = previewSprite != null;
+            nextPrefabImage.preserveAspect = true;
+        }
+
+        if (nextPrefabSpriteRenderer != null)
+        {
+            nextPrefabSpriteRenderer.sprite = previewSprite;
+            nextPrefabSpriteRenderer.enabled = previewSprite != null;
+        }
+
+        if (nextPrefabText != null)
+        {
+            nextPrefabText.text = previewName;
+        }
+    }
+
     private void UpdateHud()
     {
         UpdateScoreText();
@@ -222,6 +252,27 @@ public class GameSetting : MonoBehaviour
         {
             endGame();
         }
+    }
+
+    private Sprite GetPrefabSprite(int prefabId)
+    {
+        if (!CanInstantiatePrefabs(prefabId))
+        {
+            return null;
+        }
+
+        SpriteRenderer spriteRenderer = Prefabs[prefabId].GetComponent<SpriteRenderer>();
+        return spriteRenderer != null ? spriteRenderer.sprite : null;
+    }
+
+    private string GetPrefabDisplayName(int prefabId)
+    {
+        if (!CanInstantiatePrefabs(prefabId))
+        {
+            return string.Empty;
+        }
+
+        return "NEXT: " + Prefabs[prefabId].name;
     }
 
     private void EnsureMergeAudioSource()

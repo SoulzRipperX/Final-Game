@@ -5,8 +5,11 @@ using UnityEngine;
 
 public class Dropper : MonoBehaviour
 {
+    private const int RandomPrefabPoolSize = 5;
+
     private GameSetting game;
     public GameObject currentPrefabs;
+    private int nextPrefabId;
 
     private void PrepareCurrentPrefabs()
     {
@@ -31,6 +34,8 @@ public class Dropper : MonoBehaviour
     void Start()
     {
         game = GameObject.Find("GameController").GetComponent<GameSetting>();
+        nextPrefabId = GetRandomPrefabId();
+        game.UpdateNextPrefabPreview(nextPrefabId);
 
         currentPrefabs = game.InstantiatePrefabs((Vector2)this.transform.position, 0);
         if (currentPrefabs == null)
@@ -55,9 +60,7 @@ public class Dropper : MonoBehaviour
 
     private void CreatePrefabs()
     {
-        int randomPrefabs = Random.Range(0, 5);
-
-        currentPrefabs = game.InstantiatePrefabs((Vector2)this.transform.position, randomPrefabs);
+        currentPrefabs = game.InstantiatePrefabs((Vector2)this.transform.position, nextPrefabId);
         if (currentPrefabs == null)
         {
             Debug.LogError("currentPrefabs is null in CreatePrefabs()");
@@ -66,6 +69,9 @@ public class Dropper : MonoBehaviour
         {
             PrepareCurrentPrefabs();
         }
+
+        nextPrefabId = GetRandomPrefabId();
+        game.UpdateNextPrefabPreview(nextPrefabId);
     }
 
     void Update()
@@ -103,5 +109,17 @@ public class Dropper : MonoBehaviour
                 }
             }
         }
+    }
+
+    private int GetRandomPrefabId()
+    {
+        int maxExclusive = Mathf.Min(RandomPrefabPoolSize, game.Prefabs.Length);
+
+        if (maxExclusive <= 0)
+        {
+            return 0;
+        }
+
+        return Random.Range(0, maxExclusive);
     }
 }
