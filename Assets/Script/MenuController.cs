@@ -41,7 +41,6 @@ public class MenuController : MonoBehaviour
 
     public void ExitGame()
     {
-        Debug.LogFormat("Exit");
         Application.Quit();
     }
 
@@ -75,6 +74,14 @@ public class MenuController : MonoBehaviour
         PlayerPrefs.SetFloat(SfxVolumeKey, volume);
         PlayerPrefs.Save();
         ApplyVolumeToSources(sfxSources, volume);
+    }
+
+    public void PlaySfx(int index)
+    {
+        if (sfxSources != null && index < sfxSources.Length)
+        {
+            sfxSources[index].Play();
+        }
     }
 
     private static void ApplyVolumeToSources(AudioSource[] sources, float volume)
