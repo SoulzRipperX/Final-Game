@@ -1,11 +1,14 @@
-using System.Collections;
-using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 
 public class Dropper : MonoBehaviour
 {
     private const int RandomPrefabPoolSize = 5;
+
+    [Header("Movement")]
+    [SerializeField] private float minX = -2.58f;
+    [SerializeField] private float maxX = 2.58f;
+    [SerializeField] private float holdY = 2f;
+    [SerializeField] private bool mouseControlEnabled = true;
 
     private GameSetting game;
     public GameObject currentPrefabs;
@@ -76,38 +79,71 @@ public class Dropper : MonoBehaviour
 
     void Update()
     {
-        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        if (!game.gameOver && mousePos.x < 2.58f && mousePos.x > -2.58f)
+        if (mouseControlEnabled && Camera.main != null && !game.gameOver)
         {
-            mousePos.y = 3f;
-            transform.position = mousePos;
+            Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            MoveToX(mousePos.x);
         }
 
-        if (currentPrefabs != null)
+        UpdateHeldPrefabPosition();
+
+        if (mouseControlEnabled && !game.gameOver && Input.GetMouseButtonDown(0))
         {
-            var rb2d = currentPrefabs.GetComponent<Rigidbody2D>();
-            if (rb2d != null && rb2d.gravityScale == 0)
-            {
-                currentPrefabs.transform.position = this.transform.position;
-            }
+            DropCurrentPrefabs();
+        }
+    }
+
+    public void MoveBy(float deltaX)
+    {
+        MoveToX(transform.position.x + deltaX);
+    }
+
+    public void MoveToX(float targetX)
+    {
+        if (game == null || game.gameOver)
+        {
+            return;
         }
 
-        if (!game.gameOver && Input.GetMouseButtonDown(0))
-        {
-            if (currentPrefabs != null)
-            {
-                var rb2d = currentPrefabs.GetComponent<Rigidbody2D>();
-                if (rb2d != null)
-                {
-                    Prefabs prefabs = currentPrefabs.GetComponent<Prefabs>();
-                    if (prefabs != null)
-                    {
-                        prefabs.Release();
-                    }
+        Vector3 targetPosition = transform.position;
+        targetPosition.x = Mathf.Clamp(targetX, minX, maxX);
+        targetPosition.y = holdY;
+        transform.position = targetPosition;
+    }
 
-                    rb2d.gravityScale = 1;
-                }
-            }
+    public void DropCurrentPrefabs()
+    {
+        if (game == null || game.gameOver || currentPrefabs == null)
+        {
+            return;
+        }
+
+        Rigidbody2D rb2d = currentPrefabs.GetComponent<Rigidbody2D>();
+        if (rb2d == null)
+        {
+            return;
+        }
+
+        Prefabs prefabs = currentPrefabs.GetComponent<Prefabs>();
+        if (prefabs != null)
+        {
+            prefabs.Release();
+        }
+
+        rb2d.gravityScale = 1;
+    }
+
+    private void UpdateHeldPrefabPosition()
+    {
+        if (currentPrefabs == null)
+        {
+            return;
+        }
+
+        Rigidbody2D rb2d = currentPrefabs.GetComponent<Rigidbody2D>();
+        if (rb2d != null && rb2d.gravityScale == 0)
+        {
+            currentPrefabs.transform.position = transform.position;
         }
     }
 

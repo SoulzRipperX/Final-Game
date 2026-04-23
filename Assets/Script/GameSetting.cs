@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
@@ -9,6 +10,7 @@ using UnityEngine.UI;
 public class GameSetting : MonoBehaviour
 {
     private const string SfxVolumeKey = "SFX_VOLUME";
+    private const string LeaderboardSaveKey = "LEADERBOARD_DATA";
 
     [Header("Gameplay")]
     public GameObject[] Prefabs;
@@ -25,7 +27,11 @@ public class GameSetting : MonoBehaviour
     [Header("Next Preview")]
     [SerializeField] private Image nextPrefabImage;
     [SerializeField] private SpriteRenderer nextPrefabSpriteRenderer;
-    [SerializeField] private TMP_Text nextPrefabText;
+
+    [Header("Leaderboard")]
+    [SerializeField] private TMP_Text bestScoreText;
+    [SerializeField] private TMP_Text leaderboardText;
+    [SerializeField] private int leaderboardSize = 5;
 
     [Header("Audio")]
     [SerializeField] private AudioClip mergeSfx;
@@ -37,10 +43,28 @@ public class GameSetting : MonoBehaviour
     private float topBarTouchTimer = 0f;
     private AudioSource mergeAudioSource;
     private readonly HashSet<Prefabs> prefabsTouchingTopBar = new HashSet<Prefabs>();
+    private LeaderboardData leaderboardData = new LeaderboardData();
+
+    [System.Serializable]
+    private class LeaderboardEntry
+    {
+        public int score;
+        public float playTime;
+    }
+
+    [System.Serializable]
+    private class LeaderboardData
+    {
+        public int bestScore;
+        public float bestPlayTime;
+        public List<LeaderboardEntry> entries = new List<LeaderboardEntry>();
+    }
 
     private void Start()
     {
+        LoadLeaderboard();
         UpdateHud();
+        RefreshLeaderboardUi();
         SetOverCanvasVisibility(false);
         SetResultVisibility(false);
     }
@@ -54,6 +78,7 @@ public class GameSetting : MonoBehaviour
 
         elapsedTime += Time.deltaTime;
         UpdateTimeText();
+        UpdateBestScoreText();
         UpdateTopBarLoseState();
     }
 
@@ -128,7 +153,9 @@ public class GameSetting : MonoBehaviour
         gameOver = true;
         prefabsTouchingTopBar.Clear();
         topBarTouchTimer = 0f;
+        SaveCurrentRunToLeaderboard();
         UpdateResultText();
+        RefreshLeaderboardUi();
         SetOverCanvasVisibility(true);
         SetResultVisibility(true);
     }
@@ -185,17 +212,13 @@ public class GameSetting : MonoBehaviour
             nextPrefabSpriteRenderer.sprite = previewSprite;
             nextPrefabSpriteRenderer.enabled = previewSprite != null;
         }
-
-        if (nextPrefabText != null)
-        {
-            nextPrefabText.text = previewName;
-        }
     }
 
     private void UpdateHud()
     {
         UpdateScoreText();
         UpdateTimeText();
+        UpdateBestScoreText();
     }
 
     private void UpdateScoreText()
@@ -219,6 +242,15 @@ public class GameSetting : MonoBehaviour
         if (resultText != null)
         {
             resultText.text = "GAME OVER\nSCORE: " + score + "\nTIME: " + FormatTime(elapsedTime);
+        }
+    }
+
+    private void UpdateBestScoreText()
+    {
+        if (bestScoreText != null)
+        {
+            int displayedBestScore = Mathf.Max(leaderboardData.bestScore, score);
+            bestScoreText.text = "BEST SCORE: " + displayedBestScore;
         }
     }
 
@@ -252,6 +284,104 @@ public class GameSetting : MonoBehaviour
         {
             endGame();
         }
+    }
+
+    private void RefreshLeaderboardUi()
+    {
+        UpdateBestScoreText();
+        UpdateLeaderboardText();
+    }
+
+    private void UpdateLeaderboardText()
+    {
+        if (leaderboardText == null)
+        {
+            return;
+        }
+
+        if (leaderboardData.entries == null || leaderboardData.entries.Count == 0)
+        {
+            leaderboardText.text = "LEADERBOARD\nNO RECORD";
+            return;
+        }
+
+        StringBuilder builder = new StringBuilder();
+
+
+        int rank = 1;
+        foreach (LeaderboardEntry entry in leaderboardData.entries)
+        {
+            builder.Append(rank);
+            builder.Append(". SCORE ");
+            builder.Append(entry.score);
+            builder.Append(" | PLAY TIME ");
+            builder.Append(FormatTime(entry.playTime));
+            builder.AppendLine();
+            rank++;
+        }
+
+        leaderboardText.text = builder.ToString().TrimEnd();
+    }
+
+    private void SaveCurrentRunToLeaderboard()
+    {
+        if (leaderboardData.entries == null)
+        {
+            leaderboardData.entries = new List<LeaderboardEntry>();
+        }
+
+        leaderboardData.entries.Add(new LeaderboardEntry
+        {
+            score = score,
+            playTime = elapsedTime
+        });
+
+        leaderboardData.entries.Sort((left, right) => right.score.CompareTo(left.score));
+
+        int maxEntries = Mathf.Max(1, leaderboardSize);
+        if (leaderboardData.entries.Count > maxEntries)
+        {
+            leaderboardData.entries.RemoveRange(maxEntries, leaderboardData.entries.Count - maxEntries);
+        }
+
+        leaderboardData.bestScore = Mathf.Max(leaderboardData.bestScore, score);
+        leaderboardData.bestPlayTime = Mathf.Max(leaderboardData.bestPlayTime, elapsedTime);
+
+        SaveLeaderboard();
+    }
+
+    private void LoadLeaderboard()
+    {
+        if (!PlayerPrefs.HasKey(LeaderboardSaveKey))
+        {
+            leaderboardData = new LeaderboardData();
+            return;
+        }
+
+        string savedJson = PlayerPrefs.GetString(LeaderboardSaveKey, string.Empty);
+        if (string.IsNullOrEmpty(savedJson))
+        {
+            leaderboardData = new LeaderboardData();
+            return;
+        }
+
+        leaderboardData = JsonUtility.FromJson<LeaderboardData>(savedJson);
+        if (leaderboardData == null)
+        {
+            leaderboardData = new LeaderboardData();
+        }
+
+        if (leaderboardData.entries == null)
+        {
+            leaderboardData.entries = new List<LeaderboardEntry>();
+        }
+    }
+
+    private void SaveLeaderboard()
+    {
+        string leaderboardJson = JsonUtility.ToJson(leaderboardData);
+        PlayerPrefs.SetString(LeaderboardSaveKey, leaderboardJson);
+        PlayerPrefs.Save();
     }
 
     private Sprite GetPrefabSprite(int prefabId)
