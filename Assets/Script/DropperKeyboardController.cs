@@ -31,6 +31,7 @@ public class DropperKeyboardController : MonoBehaviour
         float direction = GetHorizontalDirection();
         if (!Mathf.Approximately(direction, 0f))
         {
+            dropper.NotifyExternalControlInput();
             dropper.MoveBy(direction * moveSpeed * Time.deltaTime);
         }
 

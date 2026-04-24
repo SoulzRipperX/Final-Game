@@ -3,6 +3,7 @@ using UnityEngine;
 public class Dropper : MonoBehaviour
 {
     private const int RandomPrefabPoolSize = 5;
+    private const float MouseResumeThresholdPixels = 1f;
 
     [Header("Movement")]
     [SerializeField] private float minX = -2.58f;
@@ -13,6 +14,8 @@ public class Dropper : MonoBehaviour
     private GameSetting game;
     public GameObject currentPrefabs;
     private int nextPrefabId;
+    private bool keyboardControlActive;
+    private Vector3 lastMouseScreenPosition;
 
     private void PrepareCurrentPrefabs()
     {
@@ -37,6 +40,7 @@ public class Dropper : MonoBehaviour
     void Start()
     {
         game = GameObject.Find("GameController").GetComponent<GameSetting>();
+        lastMouseScreenPosition = Input.mousePosition;
         nextPrefabId = GetRandomPrefabId();
         game.UpdateNextPrefabPreview(nextPrefabId);
 
@@ -81,8 +85,7 @@ public class Dropper : MonoBehaviour
     {
         if (mouseControlEnabled && Camera.main != null && !game.gameOver)
         {
-            Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            MoveToX(mousePos.x);
+            UpdateMouseControl();
         }
 
         UpdateHeldPrefabPosition();
@@ -133,6 +136,12 @@ public class Dropper : MonoBehaviour
         rb2d.gravityScale = 1;
     }
 
+    public void NotifyExternalControlInput()
+    {
+        keyboardControlActive = true;
+        lastMouseScreenPosition = Input.mousePosition;
+    }
+
     private void UpdateHeldPrefabPosition()
     {
         if (currentPrefabs == null)
@@ -157,5 +166,26 @@ public class Dropper : MonoBehaviour
         }
 
         return Random.Range(0, maxExclusive);
+    }
+
+    private void UpdateMouseControl()
+    {
+        Vector3 currentMouseScreenPosition = Input.mousePosition;
+        bool hasMouseMoved = HasMouseMoved(currentMouseScreenPosition);
+
+        if (!keyboardControlActive || hasMouseMoved)
+        {
+            keyboardControlActive = false;
+
+            Vector2 mousePos = Camera.main.ScreenToWorldPoint(currentMouseScreenPosition);
+            MoveToX(mousePos.x);
+        }
+
+        lastMouseScreenPosition = currentMouseScreenPosition;
+    }
+
+    private bool HasMouseMoved(Vector3 currentMouseScreenPosition)
+    {
+        return (currentMouseScreenPosition - lastMouseScreenPosition).sqrMagnitude >= MouseResumeThresholdPixels * MouseResumeThresholdPixels;
     }
 }
