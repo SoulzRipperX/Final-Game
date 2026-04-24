@@ -10,6 +10,7 @@ public class Dropper : MonoBehaviour
     [SerializeField] private float maxX = 2.58f;
     [SerializeField] private float holdY = 2f;
     [SerializeField] private bool mouseControlEnabled = true;
+    [SerializeField] private float spawnDelay = 0.2f;
 
     private GameSetting game;
     public GameObject currentPrefabs;
@@ -62,7 +63,7 @@ public class Dropper : MonoBehaviour
             return;
         }
 
-        Invoke(nameof(CreatePrefabs), 0.1f);
+        Invoke(nameof(CreatePrefabs), spawnDelay);
     }
 
     private void CreatePrefabs()
@@ -83,6 +84,8 @@ public class Dropper : MonoBehaviour
 
     void Update()
     {
+        EnsureCurrentPrefabsExists();
+
         if (mouseControlEnabled && Camera.main != null && !game.gameOver)
         {
             UpdateMouseControl();
@@ -121,19 +124,22 @@ public class Dropper : MonoBehaviour
             return;
         }
 
-        Rigidbody2D rb2d = currentPrefabs.GetComponent<Rigidbody2D>();
+        GameObject releasedPrefabs = currentPrefabs;
+        Rigidbody2D rb2d = releasedPrefabs.GetComponent<Rigidbody2D>();
         if (rb2d == null)
         {
             return;
         }
 
-        Prefabs prefabs = currentPrefabs.GetComponent<Prefabs>();
+        Prefabs prefabs = releasedPrefabs.GetComponent<Prefabs>();
         if (prefabs != null)
         {
             prefabs.Release();
         }
 
         rb2d.gravityScale = 1;
+        currentPrefabs = null;
+        SpawnNewPrefabs();
     }
 
     public void NotifyExternalControlInput()
@@ -154,6 +160,16 @@ public class Dropper : MonoBehaviour
         {
             currentPrefabs.transform.position = transform.position;
         }
+    }
+
+    private void EnsureCurrentPrefabsExists()
+    {
+        if (game == null || game.gameOver || currentPrefabs != null || IsInvoking(nameof(CreatePrefabs)))
+        {
+            return;
+        }
+
+        SpawnNewPrefabs();
     }
 
     private int GetRandomPrefabId()

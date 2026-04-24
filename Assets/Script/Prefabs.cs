@@ -34,11 +34,13 @@ public class Prefabs : MonoBehaviour
         hasSpawnedNextPrefabs = false;
         topBarOverlapCount = 0;
         isTouchingTopBar = false;
+        SetPhysicalCollisionsEnabled(false);
     }
 
     public void Release()
     {
         hasBeenReleased = true;
+        SetPhysicalCollisionsEnabled(true);
 
         if (isTouchingTopBar)
         {
@@ -101,24 +103,12 @@ public class Prefabs : MonoBehaviour
 
     void OnCollisionEnter2D(Collision2D collision)
     {
-        SpawnNextPrefabsIfNeeded();
+        HandleCollision(collision);
+    }
 
-        Prefabs otherPrefabs = collision.gameObject.GetComponent<Prefabs>();
-
-        if (!hasCollided && otherPrefabs != null && !otherPrefabs.hasCollided && otherPrefabs.id == this.id && this.gameObject.GetInstanceID() < collision.gameObject.GetInstanceID())
-        {
-            hasCollided = true;
-            otherPrefabs.hasCollided = true;
-
-            if (game.CanInstantiatePrefabs(this.id + 1))
-            {
-                game.InstantiatePrefabs((Vector2)this.transform.position, this.id + 1);
-            }
-
-            game.addScore(this.id);
-            game.PlayMergeSfx();
-            StartCoroutine(DestroyPrefabs(this.gameObject, collision.gameObject));
-        }
+    void OnCollisionStay2D(Collision2D collision)
+    {
+        HandleCollision(collision);
     }
 
     private void OnDisable()
@@ -156,5 +146,46 @@ public class Prefabs : MonoBehaviour
         {
             game.SetTopBarContact(this, false);
         }
+    }
+
+    private void SetPhysicalCollisionsEnabled(bool isEnabled)
+    {
+        Collider2D[] colliders = GetComponents<Collider2D>();
+        foreach (Collider2D collider in colliders)
+        {
+            if (!collider.isTrigger)
+            {
+                collider.enabled = isEnabled;
+            }
+        }
+    }
+
+    private void HandleCollision(Collision2D collision)
+    {
+        SpawnNextPrefabsIfNeeded();
+
+        Prefabs otherPrefabs = collision.gameObject.GetComponent<Prefabs>();
+
+        if (hasCollided || otherPrefabs == null || otherPrefabs.hasCollided || otherPrefabs.id != id || game == null)
+        {
+            return;
+        }
+
+        if (gameObject.GetInstanceID() > collision.gameObject.GetInstanceID())
+        {
+            return;
+        }
+
+        hasCollided = true;
+        otherPrefabs.hasCollided = true;
+
+        if (game.CanInstantiatePrefabs(id + 1))
+        {
+            game.InstantiatePrefabs((Vector2)transform.position, id + 1);
+        }
+
+        game.addScore(id);
+        game.PlayMergeSfx();
+        StartCoroutine(DestroyPrefabs(gameObject, collision.gameObject));
     }
 }

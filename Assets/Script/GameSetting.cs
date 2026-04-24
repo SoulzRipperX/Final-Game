@@ -301,7 +301,7 @@ public class GameSetting : MonoBehaviour
 
         if (leaderboardData.entries == null || leaderboardData.entries.Count == 0)
         {
-            leaderboardText.text = "LEADERBOARD\nNO RECORD";
+            leaderboardText.text = "\nNO RECORD";
             return;
         }
 
